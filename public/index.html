@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="uz">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Bot Hosting Panel</title>
+    <link rel="stylesheet" href="https://jsdelivr.net" />
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #1e1e1e;
+            color: white;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            height: 80vh;
+        }
+
+        .editor-box,
+        .terminal-box {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        textarea {
+            flex: 1;
+            background: #252526;
+            color: #d4d4d4;
+            border: 1px solid #3c3c3c;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 14px;
+            resize: none;
+        }
+
+        #terminal {
+            flex: 1;
+            background: #000;
+            padding: 10px;
+            border: 1px solid #3c3c3c;
+        }
+
+        .controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            flex: 1;
+            padding: 10px;
+            background: #252526;
+            border: 1px solid #3c3c3c;
+            color: white;
+            font-family: monospace;
+        }
+
+        button {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            font-weight: bold;
+        }
+
+        .btn-save {
+            background: #0e639c;
+            color: white;
+        }
+
+        .btn-run {
+            background: #2ea043;
+            color: white;
+        }
+
+        .btn-stop {
+            background: #da3633;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Telegram Bot Hosting (MVP)</h2>
+    <div class="container">
+        <!-- Kod yozish qismi -->
+        <div class="editor-box">
+            <h3>bot.py</h3>
+            <textarea id="codeEditor" placeholder="Bot kodini shu yerga joylashtiring...">import asyncio
+from aiogram import Bot, Dispatcher
+
+print("Bot ishga tushmoqda...")
+# Bu yerga bot kodingizni yozing</textarea>
+            <div class="controls">
+                <button class="btn-save" onclick="saveCode()">Kodni Saqlash</button>
+            </div>
+        </div>
+
+        <!-- Konsol qismi -->
+        <div class="terminal-box">
+            <h3>Console (Terminal)</h3>
+            <div id="terminal"></div>
+            <div class="controls">
+                <input type="text" id="cmdInput" placeholder="Masalan: pip install aiogram yoki python bot.py"
+                    onkeypress="handleEnter(event)">
+                <button class="btn-run" onclick="sendCommand()">Ishga tushirish</button>
+                <button class="btn-stop" onclick="stopProcess()">To'xtatish</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://jsdelivr.net"></script>
+    <script>
+        const socket = io();
+        const term = new Terminal({ cursorBlink: true, fontSize: 14 });
+        term.open(document.getElementById('terminal'));
+        term.writeln('Tizimga xush kelibsiz! Buyruq kiriting...\r\n');
+
+        // Serverdan kelgan konsol natijalarini chiqarish
+        socket.on('terminal-output', (data) => {
+            term.write(data);
+        });
+
+        // Kodni serverga saqlash
+        async function saveCode() {
+            const code = document.getElementById('codeEditor').value;
+            const res = await fetch('/save-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code, userId: 'default_user' })
+            });
+            const data = await res.json();
+            alert(data.message);
+        }
+
+        // Konsolga buyruq yuborish
+        function sendCommand() {
+            const input = document.getElementById('cmdInput');
+            const cmd = input.value.trim();
+            if (cmd) {
+                socket.emit('run-command', cmd);
+                input.value = '';
+            }
+        }
+
+        function stopProcess() {
+            socket.emit('stop-process');
+        }
+
+        function handleEnter(e) {
+            if (e.key === 'Enter') sendCommand();
+        }
+    </script>
+</body>
+
+</html>
